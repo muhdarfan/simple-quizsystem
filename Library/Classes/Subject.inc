@@ -6,7 +6,7 @@ class Subject
     public function RetrieveSubject($opt = Array()) {
         try {
             $stmt = Helper::$DB->prepare('');
-            
+
         } catch (PDOException $e) {
 
         }
