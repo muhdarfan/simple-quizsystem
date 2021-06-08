@@ -2,7 +2,7 @@
 $Config = array(
     'mysql' => array(
         'host' => 'localhost',
-        'user' => 'root',
+        'student' => 'root',
         'pass' => '',
         'db' => 'uthm-quizsystem',
     )
