@@ -10,13 +10,37 @@ class Users
         if (isset($_SESSION['user_id'])) {
             self::$Session = self::LoadUserData($_SESSION['user_id'], $_SESSION['user_type']);
             self::$Session['type'] = $_SESSION['user_type'];
+
+            if (isset($_SESSION['change_pass']) && ($_SERVER['SCRIPT_NAME'] !== '/changepass.php' && $_SERVER['SCRIPT_NAME'] !== '/logout.php'))
+                Helper::Redirect('/changepass.php');
         }
+    }
+
+    public static function CheckAuth()
+    {
+        $url = $_SERVER['SCRIPT_NAME'];
+        $path = explode('/', $url);
+
+        if ($url == '/index.php')
+            return;
+
+        if (strcmp($path[1], 'admin') !== 0 && self::$Session['type'] != 'admin')
+            Helper::Redirect('/');
+
+        if (strcmp($path[1], 'lecturer') !== 0 && self::$Session['type'] != 'lecturer')
+            Helper::Redirect('/');
+
+        if (strcmp($path[1], 'student') !== 0 && self::$Session['type'] != 'student ')
+            Helper::Redirect('/');
+
+        if (isset($_SESSION['change_pass']) && ($_SERVER['SCRIPT_NAME'] !== '/changepass.php' && $_SERVER['SCRIPT_NAME'] !== '/logout.php'))
+            Helper::Redirect('/changepass.php');
     }
 
     private static function LoadUserData($ID, $Type)
     {
         if ($Type == 'student')
-            $sql = "SELECT student_id AS id, name, email FROM tbl_students WHERE student_id = :id LIMIT 1";
+            $sql = "SELECT student_id AS id, name FROM tbl_students WHERE student_id = :id LIMIT 1";
         elseif ($Type == 'admin')
             $sql = "SELECT admin_id AS id, name FROM tbl_admins WHERE admin_id = :id LIMIT 1";
         elseif ($Type == 'lecturer')
@@ -38,41 +62,60 @@ class Users
         }
     }
 
-    public static function register($type, $id, $name, $pass = '', $email = '')
+    public static function RetrieveAll($type)
+    {
+        if ($type == 'admin')
+            $sql = "SELECT admin_id, name FROM tbl_admins";
+        elseif ($type == 'lecturer')
+            $sql = "SELECT lecturer.lecturer_id, lecturer.name, lecturer.updated_at, admin.name AS updated_by FROM tbl_lecturers lecturer LEFT JOIN tbl_admins admin ON lecturer.updated_by = admin.admin_id";
+        elseif ($type == 'student')
+            $sql = "SELECT student.student_id, student.name, student.updated_at, admin.name AS updated_by FROM tbl_students student LEFT JOIN tbl_admins admin ON student.updated_by = admin.admin_id";
+        else
+            return [];
+
+        return Helper::$DB->query($sql)->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    public static function RetrieveById($type, $id)
+    {
+        if ($type == 'admin')
+            $sql = "SELECT admin_id AS id, name FROM tbl_admins WHERE admin_id = {$id}";
+        elseif ($type == 'lecturer')
+            $sql = "SELECT lecturer_id AS id, name FROM tbl_lecturers WHERE lecturer_id = {$id}";
+        elseif ($type == 'student')
+            $sql = "SELECT student_id AS id, name FROM tbl_students WHERE student_id = '{$id}'";
+        else
+            return [];
+
+        return Helper::$DB->query($sql)->fetch(PDO::FETCH_ASSOC);
+    }
+
+    public static function ChangePassword($Password)
     {
         try {
-            if ($type == 'student') {
-                $sql = "INSERT INTO tbl_students VALUES (:id, :name, :email, :id)";
+            if (!self::$Session)
+                return false;
 
-                $stmt = Helper::$DB->prepare($sql);
-                $stmt->bindParam(':id', $id);
-                $stmt->bindParam(':name', $name);
-                $stmt->bindParam(':email', $email);
+            if (self::$Session['type'] == 'admin')
+                $sql = "UPDATE tbl_admins SET password = :pass WHERE admin_id = :id LIMIT 1";
+            elseif (self::$Session['type'] == 'lecturer')
+                $sql = "UPDATE tbl_lecturers SET password = :pass WHERE lecturer_id = :id LIMIT 1";
+            elseif (self::$Session['type'] == 'student')
+                $sql = "UPDATE tbl_students SET password = :pass WHERE student_id = :id LIMIT 1";
+            else
+                return array('error' => "Bad Request");
 
-                $stmt->execute();
+            $stmt = Helper::$DB->prepare($sql);
+            $stmt->bindParam(':pass', $Password);
+            $stmt->bindParam(':id', self::$Session['id']);
+            $stmt->execute();
 
-                return 200;
-            } elseif ($type == 'admin' || $type == 'lecturer') {
-                $sql = '';
-                if ($type == 'admin')
-                    $sql = "INSERT INTO tbl_admins VALUES (:id, :name, :password)";
-                elseif ($type == 'lecturer')
-                    $sql = "INSERT INTO tbl_lecturers VALUES (:id, :name:, :password)";
+            unset($_SESSION['change_pass']);
 
-                $stmt = Helper::$DB->prepare($sql);
-                $stmt->bindParam(':id', $id);
-                $stmt->bindParam(':name', $name);
-                $stmt->bindParam(':password', $pass);
-
-                $stmt->execute();
-
-                return 200;
-            }
+            return true;
         } catch (PDOException $e) {
-            return $e->getCode();
+            return array('error' => $e->getMessage());
         }
-
-        return 404;
     }
 
     public static function login($user, $password, $type)
@@ -104,23 +147,12 @@ class Users
         if ($query->rowCount() == 0)
             return 404; // student not found / incorrect password
 
-        if ($type == 'student' && strcmp($user['password'], $user['id']) == 0)
+        if (strcmp($user['password'], $user['id']) == 0)
             $_SESSION['change_pass'] = true;
 
         $_SESSION['user_id'] = $user['id'];
         $_SESSION['user_type'] = $type;
         return 200;
-    }
-
-    public static function delete($user)
-    {
-        $sql = "DELETE FROM tbl_admins WHERE admin_id = :id LIMIT 1";
-        $stmt = Helper::$DB->prepare($sql);
-        $stmt->bindParam('id', $user);
-
-        $stmt->execute();
-
-        return true;
     }
 
     public static function logout()
@@ -130,7 +162,113 @@ class Users
         return true;
     }
 
-    public static function HasAccess($type) {
+    public static function register($type, $id, $name, $pass = false)
+    {
+        try {
+            if ($type == 'admin')
+                $sql = "INSERT INTO tbl_admins(admin_id, name, password) VALUES (:id, :name, :password)";
+            elseif ($type == 'lecturer')
+                $sql = "INSERT INTO tbl_lecturers(lecturer_id, name, password, updated_by) VALUES (:id, :name:, :password, :admin)";
+            elseif ($type == 'student')
+                $sql = "INSERT INTO tbl_students(student_id, name, password, updated_by) VALUES (:id, :name, :password, :admin)";
+            else
+                return array('error' => 'User type not provided.');
+
+            $name = strtoupper($name);
+            $pass = ($pass !== false) ? $pass : $id;
+            $stmt = Helper::$DB->prepare($sql);
+            $stmt->bindParam(':id', $id);
+            $stmt->bindParam(':name', $name);
+            $stmt->bindParam(':password', $pass);
+
+            if ($type == 'lecturer' || $type == 'student') {
+                $stmt->bindParam(':admin', Users::$Session['id']);
+            }
+
+            $stmt->execute();
+
+            return true;
+        } catch (PDOException $e) {
+            return array('error' => $e->getMessage());
+        }
+
+        return array('error' => 'Bad Request');
+    }
+
+    public static function update($type, $oid, $id, $name)
+    {
+        try {
+            if ($type == 'admin')
+                $sql = "UPDATE tbl_admins SET admin_id = :id, name = :name WHERE admin_id = :oid LIMIT 1";
+            elseif ($type == 'lecturer')
+                $sql = "UPDATE tbl_lecturers SET lecturer_id = :id, name = :name, updated_by = :admin, updated_at = NOW() WHERE lecturer_id = :oid LIMIT 1";
+            elseif ($type == 'student')
+                $sql = "UPDATE tbl_students SET student_id = :id, name = :name, updated_by = :admin, updated_at = NOW() WHERE student_id = :oid LIMIT 1";
+            else
+                return array('error' => 'User type not provided.');
+
+            $name = strtoupper($name);
+
+            $stmt = Helper::$DB->prepare($sql);
+            $stmt->bindParam(':id', $id);
+            $stmt->bindParam(':name', $name);
+            $stmt->bindParam(':oid', $oid);
+
+
+            if ($type == 'lecturer' || $type == 'student') {
+                $stmt->bindParam(':admin', Users::$Session['id']);
+            }
+
+            $stmt->execute();
+
+            return true;
+        } catch (PDOException $e) {
+            return array('error' => $e->getMessage());
+        }
+
+        return array('error' => 'Bad Request');
+    }
+
+    public static function delete($type, $ID)
+    {
+        try {
+            switch ($type) {
+                case 'student':
+
+                    $stmt = Helper::$DB->prepare('DELETE FROM tbl_students WHERE student_id = :id LIMIT 1');
+                    $stmt->bindParam(':id', $ID);
+                    $stmt->execute();
+                    return true;
+
+                case 'lecturer':
+
+                    $stmt = Helper::$DB->prepare('DELETE FROM tbl_lecturers WHERE lecturer_id = :id LIMIT 1');
+                    $stmt->bindParam(':id', $ID);
+                    $stmt->execute();
+                    return true;
+
+                case 'admin':
+                    if (Admin::hasModified($ID))
+                        return array('error' => 'Unsuccessful! Admin data is being used at other tables.');
+
+                    $stmt = Helper::$DB->prepare('DELETE FROM tbl_admins WHERE admin_id = :id LIMIT 1');
+                    $stmt->bindParam(':id', $ID);
+                    $stmt->execute();
+
+                    return true;
+
+                default:
+                    return array('error' => 'Bad Request');
+            }
+        } catch (PDOException $e) {
+            return array('error' => $e->getMessage());
+        } catch (Exception $e) {
+            return array('error' => $e->getMessage());
+        }
+    }
+
+    public static function HasAccess($type)
+    {
         return (self::$Session && self::$Session['type'] === $type);
     }
 

@@ -1,3 +1,49 @@
+<?php
+require '../core.php';
+
+if(!Users::HasAccess('admin'))
+    Helper::Redirect("/");
+
+$Err = Array();
+
+if (isset($_POST['subject_code'], $_POST['subject_name'])) {
+    $Code = htmlspecialchars($_POST['subject_code']);
+    $Name = htmlspecialchars($_POST['subject_name']);
+
+    if (empty($Code) || empty($Name)) {
+
+    } else {
+        if (isset($_GET['edit'])) {
+            // EDIT
+        } else {
+            // ADD
+            $flag = Subject::AddSubject($Code, $Name);
+
+            if (isset($flag['error'])) {
+                // error
+                $Err[] = $flag['error'];
+            } else {
+                Helper::Redirect($_SERVER['PHP_SELF']);
+            }
+        }
+    }
+}
+
+// Delete
+if (isset($_GET['action'], $_GET['id'])) {
+    if ($_GET['action'] == 'delete') {
+        $code = htmlspecialchars($_GET['id']);
+
+        $flag = Subject::DeleteSubject($code);
+
+        if (isset($flag['error'])) {
+
+        } else {
+            Helper::Redirect($_SERVER['PHP_SELF']);
+        }
+    }
+}
+?>
 <!DOCTYPE html>
 <html>
 <head>
@@ -23,18 +69,14 @@
                 <div class="form-group row">
                     <label for="subjectCode" class="col-sm-4 col-form-label">Subject Code</label>
                     <div class="col-sm-8">
-                        <select class="form-control" id="subjectCode" name="subject_code" required>
-
-                        </select>
+                        <input type="text" class="form-control" id="subjectCode" name="subject_code" required>
                     </div>
                 </div>
 
                 <div class="form-group row">
-                    <label for="lecturerID" class="col-sm-4 col-form-label">Subject Name</label>
+                    <label for="subjectName" class="col-sm-4 col-form-label">Subject Name</label>
                     <div class="col-sm-8">
-                        <select class="form-control" id="lecturerID" name="lecturer_id" required>
-
-                        </select>
+                        <input type="text" class="form-control" id="subjectName" name="subject_name" required>
                     </div>
                 </div>
 
@@ -68,7 +110,17 @@
         </tr>
         </thead>
         <tbody>
-
+        <?php
+        foreach (Subject::Retrieve() as $row) {
+            echo "<tr>";
+            echo "<td>{$row['subject_code']}</td>";
+            echo "<td>{$row['name']}</td>";
+            echo "<td>{$row['updated_by']}</td>";
+            echo "<td>{$row['updated_at']}</td>";
+            echo "<td class='text-center'><a class='btn btn-info'>Update</a> <a href='?action=delete&id={$row['subject_code']}' class='btn btn-danger' onclick='return confirm(\"Are you sure want to delete this data?\");'>Delete</a></td>";
+            echo "</tr>";
+        }
+        ?>
         </tbody>
     </table>
 </div>

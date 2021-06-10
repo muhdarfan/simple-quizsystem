@@ -1,6 +1,6 @@
 <?php
 define('BASE', dirname(__FILE__));
-
+define('BASE_URL', "http://" . $_SERVER['HTTP_HOST'] . "/");
 session_start();
 
 require 'Library/helper.php';
@@ -16,3 +16,4 @@ try {
 }
 
 Users::CheckSession();
+//Users::CheckAuth();

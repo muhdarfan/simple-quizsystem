@@ -1,4 +1,5 @@
 <?php
+/*
 $Config = array(
     'mysql' => array(
         'host' => 'localhost',
@@ -7,3 +8,4 @@ $Config = array(
         'db' => 'uthm-quizsystem',
     )
 );
+*/

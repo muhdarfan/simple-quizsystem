@@ -1,6 +1,7 @@
 <?php
 require_once 'core.php';
 
+print_r(Users::$Session);
 if (Users::$Session)
     Helper::Redirect($_SESSION['user_type']);
 
@@ -78,7 +79,7 @@ if (isset($_POST['id'], $_POST['password'], $_POST['user_type'])) {
             <form action="<?php echo $_SERVER['REQUEST_URI']; ?>" method="POST">
                 <div class="form-group">
                     <label for="ID">ID: </label>
-                    <input type="id" name="id" class="form-control" required>
+                    <input type="text" name="id" class="form-control" required>
                 </div>
 
                 <div class="form-group">

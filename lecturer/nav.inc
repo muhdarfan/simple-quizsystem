@@ -8,23 +8,7 @@
     <div class="collapse navbar-collapse" id="navbarSupportedContent">
         <ul class="navbar-nav mr-auto">
             <li class="nav-item active navbar-expand-lg">
-                <a class="nav-link" href="admin.php">Admin<span class="sr-only">(current)</span></a>
-            </li>
-            <li class="nav-item active navbar-expand-lg">
-                <a class="nav-link" href="lecturer.php">Lecturer</a>
-            </li>
-            <li class="nav-item active navbar-expand-lg">
-                <a class="nav-link" href="students.php">Student</a>
-            </li>
-            <li class="nav-item dropdown active navbar-expand-lg">
-                <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownMenuLink" role="button"
-                   data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                    Subject
-                </a>
-                <div class="dropdown-menu" aria-labelledby="navbarDropdownMenuLink">
-                    <a class="dropdown-item" href="subject.php">Subject</a>
-                    <a class="dropdown-item" href="workload.php">Workload</a>
-                </div>
+                <a class="nav-link" href="subjectlist.php">Subject List<span class="sr-only">(current)</span></a>
             </li>
         </ul>
 

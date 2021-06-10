@@ -1,5 +1,39 @@
 <?php
 require '../core.php';
+
+if(!Users::HasAccess('admin'))
+    Helper::Redirect("/");
+
+if (isset($_POST['id'], $_POST['name'])) {
+    $ID = intval(trim($_POST['id']));
+    $Name = htmlspecialchars(trim($_POST['name']));
+
+    if (empty($_POST['id']) || empty($Name)) {
+
+    } else {
+        if (isset($_GET['edit'])) {
+            $OID = intval(trim($_POST['oid']));
+
+            $flag = Users::update('lecturer', $OID, $ID, $Name);
+        } else {
+            $flag = Users::register('lecturer', $ID, $Name);
+        }
+
+        if (isset($flag['error'])) {
+            print_r($flag['error']);
+        } else {
+            Helper::Redirect($_SERVER['PHP_SELF']);
+        }
+    }
+}
+
+if (isset($_GET['edit'])) {
+    $ID = intval($_GET['edit']);
+
+    $EditData = Users::RetrieveById('lecturer', $ID);
+    if (empty($EditData))
+        Helper::Redirect($_SERVER['PHP_SELF']);
+}
 ?>
 <!DOCTYPE html>
 <html>
@@ -25,20 +59,23 @@ require '../core.php';
                 <div class="form-group row">
                     <label for="lecturerID" class="col-sm-4 col-form-label">Lecturer ID</label>
                     <div class="col-sm-8">
-                        <input type="text" class="form-control" id="lecturerID" name="id" required>
+                        <input type="text" class="form-control" id="lecturerID" name="id"
+                               value="<?php echo isset($_GET['edit']) ? $EditData['id'] : ''; ?>" required>
                     </div>
                 </div>
 
                 <div class="form-group row">
                     <label for="lecturerName" class="col-sm-4 col-form-label">Lecturer Name</label>
                     <div class="col-sm-8">
-                        <input type="text" class="form-control" id="lecturerName" name="name" required>
+                        <input type="text" class="form-control" id="lecturerName" name="name"
+                               value="<?php echo isset($_GET['edit']) ? $EditData['name'] : ''; ?>" required>
                     </div>
                 </div>
 
                 <div class="text-center">
                     <?php
                     if (isset($_GET['edit'])) { ?>
+                        <input type="hidden" name="oid" value="<?php echo $EditData['id'] ?>" />
                         <button type="reset" class="btn btn-warning">Reset</button>
                         <button type="submit" class="btn btn-success">Update</button>
                     <?php } else { ?>
@@ -67,13 +104,13 @@ require '../core.php';
         </thead>
         <tbody>
         <?php
-        foreach (Lecturer::RetrieveAll() as $row) {
+        foreach (Users::RetrieveAll('lecturer') as $row) {
             echo "<tr>";
             echo "<td>{$row['lecturer_id']}</td>";
             echo "<td>{$row['name']}</td>";
             echo "<td>{$row['updated_by']}</td>";
             echo "<td>{$row['updated_at']}</td>";
-            echo "<td class='text-center'><a class='btn btn-info'>Update</a> <a class='btn btn-danger'>Delete</a></td>";
+            echo "<td class='text-center'><a href='?edit={$row['lecturer_id']}' class='btn btn-info'>Update</a> <a href='?delete={$row['lecturer_id']}' onclick='return confirm(\"Are you sure want to delete this record?\")' class='btn btn-danger'>Delete</a></td>";
             echo "</tr>";
         }
         ?>
